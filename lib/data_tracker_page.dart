@@ -15,13 +15,14 @@ class DataTrackerPage extends StatefulWidget {
 class _DataTrackerPageState extends State<DataTrackerPage> with SingleTickerProviderStateMixin {
   late TabController _tabController;
   List<dynamic> activities = [];
+  List<dynamic> nutrition = [];
   DateTime selectedDate = DateTime.now();
   bool isLoading = false;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 1, vsync: this);
+    _tabController = TabController(length: 2, vsync: this);
     fetchData();
   }
 
@@ -37,6 +38,7 @@ class _DataTrackerPageState extends State<DataTrackerPage> with SingleTickerProv
     });
 
     await fetchActivities();
+    await fetchNutrition();
 
     setState(() {
       isLoading = false;
@@ -59,6 +61,25 @@ class _DataTrackerPageState extends State<DataTrackerPage> with SingleTickerProv
       }
     } catch (e) {
       _showErrorSnackBar('Error fetching activities');
+    }
+  }
+
+  Future<void> fetchNutrition() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/nutrition_api.php?user_id=${widget.userId}&date=${selectedDate.toIso8601String().split('T')[0]}'),
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['success']) {
+          setState(() {
+            nutrition = data['data'];
+          });
+        }
+      }
+    } catch (e) {
+      _showErrorSnackBar('Error fetching nutrition');
     }
   }
 
@@ -88,6 +109,32 @@ class _DataTrackerPageState extends State<DataTrackerPage> with SingleTickerProv
     }
   }
 
+  Future<void> addNutrition(String food, int calories, String mealType) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/nutrition_api.php'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'user_id': widget.userId,
+          'food_item': food,
+          'calories': calories,
+          'meal_type': mealType,
+          'date': selectedDate.toIso8601String().split('T')[0],
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['success']) {
+          _showSuccessSnackBar('Nutrition added successfully');
+          fetchNutrition();
+        }
+      }
+    } catch (e) {
+      _showErrorSnackBar('Error adding nutrition');
+    }
+  }
+
   Future<void> deleteActivity(int id) async {
     try {
       final response = await http.delete(
@@ -100,6 +147,21 @@ class _DataTrackerPageState extends State<DataTrackerPage> with SingleTickerProv
       }
     } catch (e) {
       _showErrorSnackBar('Error deleting activity');
+    }
+  }
+
+  Future<void> deleteNutrition(int id) async {
+    try {
+      final response = await http.delete(
+        Uri.parse('$baseUrl/nutrition_api.php?id=$id'),
+      );
+
+      if (response.statusCode == 200) {
+        _showSuccessSnackBar('Nutrition item deleted');
+        fetchNutrition();
+      }
+    } catch (e) {
+      _showErrorSnackBar('Error deleting nutrition');
     }
   }
 
@@ -190,6 +252,89 @@ class _DataTrackerPageState extends State<DataTrackerPage> with SingleTickerProv
     );
   }
 
+  void _showAddNutritionDialog() {
+    final foodController = TextEditingController();
+    final caloriesController = TextEditingController();
+    String mealType = 'breakfast';
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: Text('Add Nutrition'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: foodController,
+                  decoration: InputDecoration(
+                    labelText: 'Food Item',
+                    hintText: 'e.g., Apple, Sandwich, Salad',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                SizedBox(height: 16),
+                TextField(
+                  controller: caloriesController,
+                  decoration: InputDecoration(
+                    labelText: 'Calories',
+                    border: OutlineInputBorder(),
+                  ),
+                  keyboardType: TextInputType.number,
+                ),
+                SizedBox(height: 16),
+                InputDecorator(
+                  decoration: InputDecoration(
+                    labelText: 'Meal Type',
+                    border: OutlineInputBorder(),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: mealType,
+                      isExpanded: true,
+                      items: ['breakfast', 'lunch', 'dinner', 'snack']
+                          .map((type) => DropdownMenuItem(
+                        value: type,
+                        child: Text(type[0].toUpperCase() + type.substring(1)),
+                      ))
+                          .toList(),
+                      onChanged: (value) {
+                        setState(() {
+                          mealType = value!;
+                        });
+                      },
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (foodController.text.isNotEmpty &&
+                    caloriesController.text.isNotEmpty) {
+                  addNutrition(
+                    foodController.text,
+                    int.tryParse(caloriesController.text) ?? 0,
+                    mealType,
+                  );
+                  Navigator.pop(context);
+                }
+              },
+              child: Text('Add'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -200,6 +345,7 @@ class _DataTrackerPageState extends State<DataTrackerPage> with SingleTickerProv
           controller: _tabController,
           tabs: [
             Tab(icon: Icon(Icons.fitness_center), text: 'Activities'),
+            Tab(icon: Icon(Icons.restaurant), text: 'Nutrition'),
           ],
         ),
       ),
@@ -302,6 +448,55 @@ class _DataTrackerPageState extends State<DataTrackerPage> with SingleTickerProv
                     );
                   },
                 ),
+
+                // Nutrition tab
+                nutrition.isEmpty
+                    ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.restaurant, size: 64, color: Colors.grey[400]),
+                      SizedBox(height: 16),
+                      Text(
+                        'No meals recorded',
+                        style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+                      ),
+                      SizedBox(height: 8),
+                      Text(
+                        'Tap + to add your first meal',
+                        style: TextStyle(color: Colors.grey[500]),
+                      ),
+                    ],
+                  ),
+                )
+                    : ListView.builder(
+                  padding: EdgeInsets.all(16),
+                  itemCount: nutrition.length,
+                  itemBuilder: (context, index) {
+                    final food = nutrition[index];
+                    return Card(
+                      elevation: 2,
+                      margin: EdgeInsets.only(bottom: 12),
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: _getMealColor(food['meal_type']),
+                          child: Icon(Icons.restaurant, color: Colors.white),
+                        ),
+                        title: Text(
+                          food['food_item'],
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        subtitle: Text(
+                          '${food['meal_type'][0].toUpperCase() + food['meal_type'].substring(1)} • ${food['calories']} cal',
+                        ),
+                        trailing: IconButton(
+                          icon: Icon(Icons.delete_outline, color: Colors.red),
+                          onPressed: () => deleteNutrition(food['id']),
+                        ),
+                      ),
+                    );
+                  },
+                ),
               ],
             ),
           ),
@@ -309,11 +504,30 @@ class _DataTrackerPageState extends State<DataTrackerPage> with SingleTickerProv
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          _showAddActivityDialog();
+          if (_tabController.index == 0) {
+            _showAddActivityDialog();
+          } else {
+            _showAddNutritionDialog();
+          }
         },
         child: Icon(Icons.add),
-        tooltip: 'Add Activity',
+        tooltip: _tabController.index == 0 ? 'Add Activity' : 'Add Meal',
       ),
     );
+  }
+
+  Color _getMealColor(String mealType) {
+    switch (mealType) {
+      case 'breakfast':
+        return Colors.orange;
+      case 'lunch':
+        return Colors.green;
+      case 'dinner':
+        return Colors.purple;
+      case 'snack':
+        return Colors.pink;
+      default:
+        return Colors.blue;
+    }
   }
 }
