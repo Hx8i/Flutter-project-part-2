@@ -8,6 +8,7 @@ class DataTrackerPage extends StatefulWidget {
 
   const DataTrackerPage({Key? key, required this.userId}) : super(key: key);
 
+
   @override
   _DataTrackerPageState createState() => _DataTrackerPageState();
 }
