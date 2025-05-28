@@ -1,0 +1,25 @@
+name: fitness_tracker
+description: A fitness tracking app with Flutter and PHP backend
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=2.19.0 <3.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # HTTP requests
+  http: ^0.13.5
+
+  # The following adds the Cupertino Icons font to your application.
+  cupertino_icons: ^1.0.5
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^2.0.0
+
+flutter:
+  uses-material-design: true
