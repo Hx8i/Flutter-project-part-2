@@ -13,6 +13,7 @@ class DataTrackerPage extends StatefulWidget {
   _DataTrackerPageState createState() => _DataTrackerPageState();
 }
 
+
 class _DataTrackerPageState extends State<DataTrackerPage> with SingleTickerProviderStateMixin {
   late TabController _tabController;
   List<dynamic> activities = [];
