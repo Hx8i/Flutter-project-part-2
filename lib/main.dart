@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'data_tracker_page.dart';
+import 'insights_page.dart';
 
 // Change this to your PHP server URL
 const String baseUrl = 'http://hadiproject.atwebpages.com';
@@ -40,6 +41,7 @@ class _MainPageState extends State<MainPage> {
     super.initState();
     _pages = [
       DataTrackerPage(userId: userId),
+      InsightsPage(userId: userId),
     ];
   }
 
