@@ -12,15 +12,30 @@ class InsightsPage extends StatefulWidget {
   _InsightsPageState createState() => _InsightsPageState();
 }
 
-class _InsightsPageState extends State<InsightsPage> {
+class _InsightsPageState extends State<InsightsPage> with TickerProviderStateMixin {
   Map<String, dynamic> stats = {};
   bool isLoading = true;
   int selectedDays = 7;
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
 
   @override
   void initState() {
     super.initState();
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+    );
     fetchStats();
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
   }
 
   Future<void> fetchStats() async {
@@ -40,155 +55,282 @@ class _InsightsPageState extends State<InsightsPage> {
             stats = data;
             isLoading = false;
           });
+          _animationController.forward();
         }
       }
     } catch (e) {
-      print('Error fetching stats: $e');
+      // Use a logger instead of print in production
       setState(() {
         isLoading = false;
       });
     }
   }
 
-  Widget _buildMetricCard(String title, String value, IconData icon, Color color) {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Container(
-        padding: EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [color.withOpacity(0.1), color.withOpacity(0.05)],
+  Widget _buildAnimatedMetricCard(String title, String value, IconData icon, Color color, int delay) {
+    return TweenAnimationBuilder<double>(
+      duration: const Duration(milliseconds: 600),
+      tween: Tween(begin: 0.0, end: 1.0),
+      builder: (context, animationValue, child) {
+        return Transform.translate(
+          offset: Offset(0, 50 * (1 - animationValue)),
+          child: Opacity(
+            opacity: animationValue,
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    color.withOpacity(0.1),
+                    color.withOpacity(0.05),
+                    Colors.white,
+                  ],
+                ),
+                border: Border.all(color: color.withOpacity(0.2)),
+                boxShadow: [
+                  BoxShadow(
+                    color: color.withOpacity(0.1),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: color.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(icon, color: color, size: 28),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: color.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            '${selectedDays}d',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: color,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey.shade600,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      value,
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey.shade800,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, color: color, size: 32),
-            SizedBox(height: 12),
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey[600],
-              ),
-            ),
-            SizedBox(height: 4),
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Colors.grey[800],
-              ),
-            ),
-          ],
-        ),
-      ),
+        );
+      },
     );
   }
 
   Widget _buildActivityBreakdown() {
     if (stats['activity_breakdown'] == null || stats['activity_breakdown'].isEmpty) {
-      return Card(
-        elevation: 2,
-        child: Container(
-          padding: EdgeInsets.all(24),
-          child: Center(
-            child: Text(
-              'No activities recorded in this period',
-              style: TextStyle(color: Colors.grey[600]),
+      return Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade50,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.grey.shade200),
+        ),
+        child: Column(
+          children: [
+            Icon(Icons.fitness_center, size: 48, color: Colors.grey.shade400),
+            const SizedBox(height: 16),
+            Text(
+              'No activities recorded',
+              style: TextStyle(
+                fontSize: 18,
+                color: Colors.grey.shade600,
+                fontWeight: FontWeight.w600,
+              ),
             ),
-          ),
+            const SizedBox(height: 8),
+            Text(
+              'Start tracking activities to see breakdown',
+              style: TextStyle(color: Colors.grey.shade500),
+              textAlign: TextAlign.center,
+            ),
+          ],
         ),
       );
     }
 
-    return Card(
-      elevation: 2,
-      child: Container(
-        padding: EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Activity Breakdown',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            SizedBox(height: 16),
-            ...stats['activity_breakdown'].map<Widget>((activity) {
-              // Add comprehensive null safety checks
-              final totalCaloriesBurned = stats['activity_stats']?['total_calories_burned'];
-              final activityCalories = activity['total_calories'];
-
-              // Safely convert to double with null checks
-              double totalBurned = 0.0;
-              double calories = 0.0;
-
-              if (totalCaloriesBurned != null) {
-                totalBurned = double.tryParse(totalCaloriesBurned.toString()) ?? 0.0;
-              }
-
-              if (activityCalories != null) {
-                calories = double.tryParse(activityCalories.toString()) ?? 0.0;
-              }
-
-              final percentage = totalBurned > 0 ? (calories / totalBurned * 100) : 0.0;
-
-              return Column(
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(activity['activity_type'] ?? 'Unknown Activity'),
-                      Text('${calories.toInt()} cal'),
-                    ],
-                  ),
-                  SizedBox(height: 8),
-                  LinearProgressIndicator(
-                    value: percentage / 100,
-                    backgroundColor: Colors.grey[300],
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
-                  ),
-                  SizedBox(height: 4),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        '${activity['count'] ?? 0} sessions',
-                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                      ),
-                      Text(
-                        '${percentage.toStringAsFixed(1)}%',
-                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: 16),
-                ],
-              );
-            }).toList(),
-          ],
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Colors.blue.shade50, Colors.white],
         ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade100,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(Icons.bar_chart, color: Colors.blue.shade700, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'Activity Breakdown',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey.shade800,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          ...stats['activity_breakdown'].asMap().entries.map<Widget>((entry) {
+            final index = entry.key;
+            final activity = entry.value;
+
+            final totalCaloriesBurned = stats['activity_stats']?['total_calories_burned'];
+            final activityCalories = activity['total_calories'];
+
+            double totalBurned = 0.0;
+            double calories = 0.0;
+
+            if (totalCaloriesBurned != null) {
+              totalBurned = double.tryParse(totalCaloriesBurned.toString()) ?? 0.0;
+            }
+
+            if (activityCalories != null) {
+              calories = double.tryParse(activityCalories.toString()) ?? 0.0;
+            }
+
+            final percentage = totalBurned > 0 ? (calories / totalBurned * 100) : 0.0;
+            final colors = [Colors.blue, Colors.green, Colors.orange, Colors.purple, Colors.pink];
+            final color = colors[index % colors.length];
+
+            return TweenAnimationBuilder<double>(
+              duration: const Duration(milliseconds: 800),
+              tween: Tween(begin: 0.0, end: percentage / 100),
+              builder: (context, animationValue, child) {
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 20),
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              activity['activity_type'] ?? 'Unknown Activity',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 16,
+                                color: Colors.grey.shade800,
+                              ),
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: color.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              '${calories.toInt()} cal',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: color,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Container(
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade200,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: FractionallySizedBox(
+                          alignment: Alignment.centerLeft,
+                          widthFactor: animationValue,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [color, color.withOpacity(0.7)],
+                              ),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            '${activity['count'] ?? 0} sessions',
+                            style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                          ),
+                          Text(
+                            '${(percentage * animationValue).toStringAsFixed(1)}%',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: color,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                );
+              },
+            );
+          }).toList(),
+        ],
       ),
     );
-  }
-
-  double _calculateBMI() {
-    if (stats['user_metrics'] != null &&
-        stats['user_metrics']['height_cm'] != null &&
-        stats['user_metrics']['weight_kg'] != null) {
-      final height = stats['user_metrics']['height_cm'] / 100;
-      final weight = stats['user_metrics']['weight_kg'];
-      return weight / (height * height);
-    }
-    return 0.0;
   }
 
   String _getBMICategory(double bmi) {
@@ -208,346 +350,398 @@ class _InsightsPageState extends State<InsightsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Insights & Analytics'),
-        elevation: 0,
-      ),
-      body: isLoading
-          ? Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-        onRefresh: fetchStats,
-        child: SingleChildScrollView(
-          physics: AlwaysScrollableScrollPhysics(),
-          child: Column(
-            children: [
-              // Period selector
-              Container(
-                color: Theme.of(context).primaryColor.withOpacity(0.1),
-                padding: EdgeInsets.all(16),
-                child: Row(
+      body: CustomScrollView(
+        slivers: [
+          SliverAppBar(
+            expandedHeight: 120,
+            floating: true,
+            pinned: true,
+            backgroundColor: Colors.white,
+            elevation: 0,
+            flexibleSpace: const FlexibleSpaceBar(
+              title: Text(
+                'Insights & Analytics',
+                style: TextStyle(
+                  color: Colors.black87,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              centerTitle: true,
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: isLoading
+                ? SizedBox(
+              height: MediaQuery.of(context).size.height * 0.6,
+              child: Center(
+                child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text('Show data for: '),
-                    SizedBox(width: 16),
-                    SegmentedButton<int>(
-                      selected: {selectedDays},
-                      onSelectionChanged: (Set<int> selected) {
-                        setState(() {
-                          selectedDays = selected.first;
-                        });
-                        fetchStats();
-                      },
-                      segments: [
-                        ButtonSegment(
-                          value: 7,
-                          label: Text('7 days'),
-                        ),
-                        ButtonSegment(
-                          value: 14,
-                          label: Text('14 days'),
-                        ),
-                        ButtonSegment(
-                          value: 30,
-                          label: Text('30 days'),
-                        ),
-                      ],
+                    const CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF6366F1)),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Loading insights...',
+                      style: TextStyle(color: Colors.grey.shade600),
                     ),
                   ],
                 ),
               ),
-
-              Padding(
-                padding: EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // BMI Card
-                    if (stats['user_metrics'] != null && stats['user_metrics']['bmi'] != null)
-                      Card(
-                        elevation: 4,
-                        child: Container(
-                          width: double.infinity,
-                          padding: EdgeInsets.all(20),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(8),
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [
-                                _getBMIColor(stats['user_metrics']['bmi'].toDouble()).withOpacity(0.2),
-                                _getBMIColor(stats['user_metrics']['bmi'].toDouble()).withOpacity(0.1),
-                              ],
-                            ),
+            )
+                : Padding(
+              padding: const EdgeInsets.only(bottom: 24),
+              child: Column(
+                children: [
+                  // Period selector
+                  Container(
+                    margin: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [const Color(0xFF6366F1).withOpacity(0.1), Colors.white],
+                      ),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.grey.shade200),
+                    ),
+                    child: Column(
+                      children: [
+                        Text(
+                          'Analysis Period',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey.shade700,
                           ),
-                          child: Column(
-                            children: [
-                              Text(
-                                'Body Mass Index (BMI)',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  color: Colors.grey[700],
-                                ),
-                              ),
-                              SizedBox(height: 8),
-                              Text(
-                                stats['user_metrics']['bmi'].toString(),
-                                style: TextStyle(
-                                  fontSize: 48,
-                                  fontWeight: FontWeight.bold,
-                                  color: _getBMIColor(stats['user_metrics']['bmi'].toDouble()),
-                                ),
-                              ),
-                              Text(
-                                _getBMICategory(stats['user_metrics']['bmi'].toDouble()),
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  color: _getBMIColor(stats['user_metrics']['bmi'].toDouble()),
-                                ),
-                              ),
-                              SizedBox(height: 12),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(Icons.height, size: 16, color: Colors.grey[600]),
-                                  SizedBox(width: 4),
-                                  Text(
-                                    '${stats['user_metrics']['height_cm']} cm',
-                                    style: TextStyle(color: Colors.grey[600]),
+                        ),
+                        const SizedBox(height: 16),
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade100,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            children: [7, 14, 30].map((days) {
+                              final isSelected = selectedDays == days;
+                              return Expanded(
+                                child: GestureDetector(
+                                  onTap: () {
+                                    setState(() {
+                                      selectedDays = days;
+                                    });
+                                    fetchStats();
+                                  },
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 200),
+                                    margin: const EdgeInsets.all(4),
+                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                    decoration: BoxDecoration(
+                                      color: isSelected ? const Color(0xFF6366F1) : Colors.transparent,
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Text(
+                                      '$days days',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        color: isSelected ? Colors.white : Colors.grey.shade700,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
                                   ),
-                                  SizedBox(width: 16),
-                                  Icon(Icons.monitor_weight, size: 16, color: Colors.grey[600]),
-                                  SizedBox(width: 4),
-                                  Text(
-                                    '${stats['user_metrics']['weight_kg']} kg',
-                                    style: TextStyle(color: Colors.grey[600]),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // BMI Card
+                        if (stats['user_metrics'] != null && stats['user_metrics']['bmi'] != null)
+                          FadeTransition(
+                            opacity: _fadeAnimation,
+                            child: Container(
+                              margin: const EdgeInsets.only(bottom: 24),
+                              padding: const EdgeInsets.all(24),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [
+                                    _getBMIColor(stats['user_metrics']['bmi']).withOpacity(0.1),
+                                    Colors.white,
+                                  ],
+                                ),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(color: _getBMIColor(stats['user_metrics']['bmi']).withOpacity(0.3)),
+                              ),
+                              child: Column(
+                                children: [
+                                  Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(12),
+                                        decoration: BoxDecoration(
+                                          color: _getBMIColor(stats['user_metrics']['bmi']).withOpacity(0.2),
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                        child: Icon(
+                                          Icons.monitor_weight,
+                                          color: _getBMIColor(stats['user_metrics']['bmi']),
+                                          size: 24,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 16),
+                                      Text(
+                                        'Body Mass Index',
+                                        style: TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.grey.shade800,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 24),
+                                  TweenAnimationBuilder<double>(
+                                    duration: const Duration(milliseconds: 1000),
+                                    tween: Tween(begin: 0.0, end: stats['user_metrics']['bmi']),
+                                    builder: (context, value, child) {
+                                      return Text(
+                                        value.toStringAsFixed(1),
+                                        style: TextStyle(
+                                          fontSize: 48,
+                                          fontWeight: FontWeight.bold,
+                                          color: _getBMIColor(stats['user_metrics']['bmi']),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                    decoration: BoxDecoration(
+                                      color: _getBMIColor(stats['user_metrics']['bmi']).withOpacity(0.2),
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: Text(
+                                      _getBMICategory(stats['user_metrics']['bmi']),
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                        color: _getBMIColor(stats['user_metrics']['bmi']),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 20),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                    children: [
+                                      Column(
+                                        children: [
+                                          Icon(Icons.height, size: 20, color: Colors.grey.shade600),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            '${stats['user_metrics']['height_cm']} cm',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.w600,
+                                              color: Colors.grey.shade700,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      Container(
+                                        height: 40,
+                                        width: 1,
+                                        color: Colors.grey.shade300,
+                                      ),
+                                      Column(
+                                        children: [
+                                          Icon(Icons.monitor_weight, size: 20, color: Colors.grey.shade600),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            '${stats['user_metrics']['weight_kg']} kg',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.w600,
+                                              color: Colors.grey.shade700,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
                                   ),
                                 ],
                               ),
-                            ],
-                          ),
-                        ),
-                      ),
-
-                    SizedBox(height: 20),
-
-                    // Activity and Nutrition Summary
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildMetricCard(
-                            'Total Activities',
-                            stats['activity_stats']?['total_activities']?.toString() ?? '0',
-                            Icons.fitness_center,
-                            Colors.blue,
-                          ),
-                        ),
-                        SizedBox(width: 16),
-                        Expanded(
-                          child: _buildMetricCard(
-                            'Total Duration',
-                            '${stats['activity_stats']?['total_duration_minutes'] ?? 0} min',
-                            Icons.timer,
-                            Colors.orange,
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    SizedBox(height: 16),
-
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildMetricCard(
-                            'Calories Burned',
-                            stats['activity_stats']?['total_calories_burned']?.toString() ?? '0',
-                            Icons.local_fire_department,
-                            Colors.red,
-                          ),
-                        ),
-                        SizedBox(width: 16),
-                        Expanded(
-                          child: _buildMetricCard(
-                            'Calories Consumed',
-                            stats['nutrition_stats']?['total_calories_consumed']?.toString() ?? '0',
-                            Icons.restaurant,
-                            Colors.green,
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    SizedBox(height: 20),
-
-                    // Net Calories Card
-                    Card(
-                      elevation: 4,
-                      child: Container(
-                        width: double.infinity,
-                        padding: EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(8),
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [
-                              (stats['net_calories'] ?? 0) >= 0
-                                  ? Colors.green.withOpacity(0.1)
-                                  : Colors.red.withOpacity(0.1),
-                              (stats['net_calories'] ?? 0) >= 0
-                                  ? Colors.green.withOpacity(0.05)
-                                  : Colors.red.withOpacity(0.05),
-                            ],
-                          ),
-                        ),
-                        child: Column(
-                          children: [
-                            Text(
-                              'Net Calories',
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: Colors.grey[700],
-                              ),
                             ),
-                            SizedBox(height: 8),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  (stats['net_calories'] ?? 0) >= 0
-                                      ? Icons.trending_up
-                                      : Icons.trending_down,
-                                  color: (stats['net_calories'] ?? 0) >= 0
-                                      ? Colors.green
-                                      : Colors.red,
-                                  size: 32,
-                                ),
-                                SizedBox(width: 8),
-                                Text(
-                                  '${stats['net_calories'] ?? 0}',
-                                  style: TextStyle(
-                                    fontSize: 36,
-                                    fontWeight: FontWeight.bold,
-                                    color: (stats['net_calories'] ?? 0) >= 0
-                                        ? Colors.green
-                                        : Colors.red,
+                          ),
+
+                        // Activity and Nutrition Summary
+                        GridView.count(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          crossAxisCount: 2,
+                          crossAxisSpacing: 16,
+                          mainAxisSpacing: 16,
+                          childAspectRatio: 1.2,
+                          children: [
+                            _buildAnimatedMetricCard(
+                              'Total Activities',
+                              stats['activity_stats']?['total_activities']?.toString() ?? '0',
+                              Icons.fitness_center,
+                              Colors.blue,
+                              0,
+                            ),
+                            _buildAnimatedMetricCard(
+                              'Total Duration',
+                              '${stats['activity_stats']?['total_duration_minutes'] ?? 0}m',
+                              Icons.timer,
+                              Colors.orange,
+                              1,
+                            ),
+                            _buildAnimatedMetricCard(
+                              'Calories Burned',
+                              stats['activity_stats']?['total_calories_burned']?.toString() ?? '0',
+                              Icons.local_fire_department,
+                              Colors.red,
+                              2,
+                            ),
+                            _buildAnimatedMetricCard(
+                              'Calories Consumed',
+                              stats['nutrition_stats']?['total_calories_consumed']?.toString() ?? '0',
+                              Icons.restaurant,
+                              Colors.green,
+                              3,
+                            ),
+                          ],
+                        ),
+
+                        const SizedBox(height: 24),
+
+                        // Net Calories Card
+                        TweenAnimationBuilder<double>(
+                          duration: const Duration(milliseconds: 1000),
+                          tween: Tween(begin: 0.0, end: 1.0),
+                          builder: (context, animationValue, child) {
+                            final netCalories = stats['net_calories'] ?? 0;
+                            final isPositive = netCalories >= 0;
+
+                            return Transform.scale(
+                              scale: 0.8 + (0.2 * animationValue),
+                              child: Opacity(
+                                opacity: animationValue,
+                                child: Container(
+                                  padding: const EdgeInsets.all(24),
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                      colors: [
+                                        isPositive
+                                            ? Colors.green.withOpacity(0.1)
+                                            : Colors.red.withOpacity(0.1),
+                                        Colors.white,
+                                      ],
+                                    ),
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(
+                                      color: isPositive
+                                          ? Colors.green.withOpacity(0.3)
+                                          : Colors.red.withOpacity(0.3),
+                                    ),
+                                  ),
+                                  child: Column(
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.all(12),
+                                            decoration: BoxDecoration(
+                                              color: isPositive
+                                                  ? Colors.green.withOpacity(0.2)
+                                                  : Colors.red.withOpacity(0.2),
+                                              borderRadius: BorderRadius.circular(12),
+                                            ),
+                                            child: Icon(
+                                              isPositive ? Icons.trending_down : Icons.trending_up,
+                                              color: isPositive ? Colors.green : Colors.red,
+                                              size: 24,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 16),
+                                          Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                'Net Calories',
+                                                style: TextStyle(
+                                                  fontSize: 16,
+                                                  color: Colors.grey.shade700,
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                              ),
+                                              Text(
+                                                isPositive ? 'Calorie Deficit' : 'Calorie Surplus',
+                                                style: TextStyle(
+                                                  fontSize: 14,
+                                                  color: isPositive ? Colors.green : Colors.red,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 20),
+                                      TweenAnimationBuilder<double>(
+                                        duration: const Duration(milliseconds: 1200),
+                                        tween: Tween(begin: 0.0, end: netCalories.toDouble()),
+                                        builder: (context, value, child) {
+                                          return Text(
+                                            '${value.toInt()}',
+                                            style: TextStyle(
+                                              fontSize: 36,
+                                              fontWeight: FontWeight.bold,
+                                              color: isPositive ? Colors.green : Colors.red,
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                      Text(
+                                        'calories',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          color: Colors.grey.shade600,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
-                              ],
-                            ),
-                            Text(
-                              (stats['net_calories'] ?? 0) >= 0
-                                  ? 'Calorie Deficit'
-                                  : 'Calorie Surplus',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.grey[600],
                               ),
-                            ),
-                          ],
+                            );
+                          },
                         ),
-                      ),
-                    ),
 
-                    SizedBox(height: 20),
+                        const SizedBox(height: 24),
 
-                    // Average Stats
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildMetricCard(
-                            'Avg. Daily Calories',
-                            stats['nutrition_stats']?['avg_daily_calories']?.toString() ?? '0',
-                            Icons.calendar_today,
-                            Colors.purple,
-                          ),
-                        ),
-                        SizedBox(width: 16),
-                        Expanded(
-                          child: _buildMetricCard(
-                            'Avg. Workout Time',
-                            '${stats['activity_stats']?['avg_duration_minutes'] ?? 0} min',
-                            Icons.access_time,
-                            Colors.teal,
-                          ),
-                        ),
+                        // Activity Breakdown
+                        _buildActivityBreakdown(),
                       ],
                     ),
-
-                    SizedBox(height: 20),
-
-                    // Activity Breakdown
-                    _buildActivityBreakdown(),
-
-                    SizedBox(height: 20),
-
-                    // Insights Summary
-                    Card(
-                      elevation: 2,
-                      child: Container(
-                        width: double.infinity,
-                        padding: EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Summary',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            SizedBox(height: 12),
-                            _buildInsightRow(
-                              Icons.info_outline,
-                              'You\'ve been active for ${stats['activity_stats']?['total_activities'] ?? 0} sessions in the last $selectedDays days',
-                              Colors.blue,
-                            ),
-                            SizedBox(height: 8),
-                            _buildInsightRow(
-                              Icons.local_fire_department,
-                              'Average ${stats['activity_stats']?['avg_calories_burned'] ?? 0} calories burned per workout',
-                              Colors.orange,
-                            ),
-                            SizedBox(height: 8),
-                            _buildInsightRow(
-                              Icons.restaurant,
-                              'Daily average intake: ${stats['nutrition_stats']?['avg_daily_calories'] ?? 0} calories',
-                              Colors.green,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                    SizedBox(height: 20),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildInsightRow(IconData icon, String text, Color color) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, size: 20, color: color),
-        SizedBox(width: 12),
-        Expanded(
-          child: Text(
-            text,
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[700],
-              height: 1.4,
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
