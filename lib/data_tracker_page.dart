@@ -657,7 +657,9 @@ class _DataTrackerPageState extends State<DataTrackerPage> with SingleTickerProv
                 : TabBarView(
               controller: _tabController,
               children: [
+                // Activities tab
                 _buildActivitiesTab(),
+                // Nutrition tab
                 _buildNutritionTab(),
               ],
             ),

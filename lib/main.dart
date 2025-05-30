@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'data_tracker_page.dart';
 import 'insights_page.dart';
+import 'login_page.dart';
 
 // Change this to your PHP server URL
 const String baseUrl = 'http://hadiproject.atwebpages.com/';
@@ -38,6 +39,7 @@ class MyApp extends StatelessWidget {
             fontWeight: FontWeight.w600,
             color: Colors.black87,
           ),
+          // Fixed title padding
           titleSpacing: 16,
           toolbarHeight: 56,
         ),
@@ -56,29 +58,49 @@ class MyApp extends StatelessWidget {
           selectedLabelStyle: TextStyle(fontWeight: FontWeight.w600),
         ),
       ),
-      home: MainPage(),
+      home: LoginPage(), // Start with login page
       debugShowCheckedModeBanner: false,
     );
   }
 }
 
 class MainPage extends StatefulWidget {
+  final int userId;
+
+  const MainPage({Key? key, required this.userId}) : super(key: key);
+
+  // Helper method to safely parse userId from different sources
+  static int parseUserId(dynamic userId) {
+    if (userId is int) {
+      return userId;
+    } else if (userId is String) {
+      return int.tryParse(userId) ?? 0; // Default to 0 if parsing fails
+    } else {
+      return 0; // Default fallback
+    }
+  }
+
+  // Alternative constructor that accepts dynamic userId
+  static MainPage fromDynamic({Key? key, required dynamic userId}) {
+    return MainPage(key: key, userId: parseUserId(userId));
+  }
+
   @override
   _MainPageState createState() => _MainPageState();
 }
 
 class _MainPageState extends State<MainPage> {
   int _selectedIndex = 0;
-  final int userId = 1; // Default user ID
 
+  // List of pages - now includes Body Visualizer
   late final List<Widget> _pages;
 
   @override
   void initState() {
     super.initState();
     _pages = [
-      DataTrackerPage(userId: userId),
-      InsightsPage(userId: userId),
+      DataTrackerPage(userId: widget.userId),
+      InsightsPage(userId: widget.userId),
     ];
   }
 
@@ -86,6 +108,51 @@ class _MainPageState extends State<MainPage> {
     setState(() {
       _selectedIndex = index;
     });
+  }
+
+  // Logout function
+  void _logout() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Logout'),
+          content: Text('Are you sure you want to logout?'),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Close dialog
+              },
+              child: Text(
+                'Cancel',
+                style: TextStyle(color: Colors.grey.shade600),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Close dialog
+                // Navigate back to login page and clear the stack
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (context) => LoginPage()),
+                      (Route<dynamic> route) => false,
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Color(0xFF6366F1),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: Text('Logout'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -118,6 +185,17 @@ class _MainPageState extends State<MainPage> {
               backgroundColor: Colors.transparent,
               automaticallyImplyLeading: false,
               elevation: 0,
+              actions: [
+                Padding(
+                  padding: EdgeInsets.only(right: 16),
+                  child: IconButton(
+                    onPressed: _logout,
+                    icon: Icon(Icons.logout),
+                    tooltip: 'Logout',
+                    color: Colors.grey.shade700,
+                  ),
+                ),
+              ],
             ),
           ),
         ),
