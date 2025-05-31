@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'data_tracker_page.dart';
 import 'insights_page.dart';
+import 'body_visualizer_page.dart'; // Add this import
 import 'login_page.dart';
 
 // Change this to your PHP server URL
@@ -101,6 +102,7 @@ class _MainPageState extends State<MainPage> {
     _pages = [
       DataTrackerPage(userId: widget.userId),
       InsightsPage(userId: widget.userId),
+      BodyVisualizerPage(userId: widget.userId), // Add the new page
     ];
   }
 
@@ -223,6 +225,7 @@ class _MainPageState extends State<MainPage> {
               children: [
                 _buildNavItem(0, Icons.fitness_center, 'Track Data'),
                 _buildNavItem(1, Icons.analytics, 'Insights'),
+                _buildNavItem(2, Icons.accessibility_new, 'Body 3D'), // Add new nav item
               ],
             ),
           ),
