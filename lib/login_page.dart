@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'main.dart';
 import 'register_page.dart';
+import 'utils/session_manager.dart';
 
 class LoginPage extends StatefulWidget {
   @override
@@ -71,17 +72,20 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (data['success'] == true) {
+          // Save session data
+          await SessionManager.saveSession(
+            userId: data['user_id'],
+            username: data['username'],
+            email: data['email'],
+          );
+
           _showSuccessSnackBar('Welcome back!');
 
-          // FIXED: Safe parsing of user_id
-          int userId = _safeParseUserId(data['user_id']);
-          print('Login successful! User ID: $userId (type: ${userId.runtimeType})');
-
-          // Navigate to main page with properly typed user ID
+          // Navigate to main page
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
-              builder: (context) => MainPage(userId: userId),
+              builder: (context) => MainPage(userId: data['user_id']),
             ),
           );
         } else {
