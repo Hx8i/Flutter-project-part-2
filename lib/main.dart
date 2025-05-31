@@ -3,6 +3,8 @@ import 'data_tracker_page.dart';
 import 'insights_page.dart';
 import 'body_visualizer_page.dart'; // Add this import
 import 'login_page.dart';
+import 'components/profile_page.dart';
+import 'utils/session_manager.dart';
 
 // Change this to your PHP server URL
 const String baseUrl = 'http://hadiproject.atwebpages.com/';
@@ -59,8 +61,96 @@ class MyApp extends StatelessWidget {
           selectedLabelStyle: TextStyle(fontWeight: FontWeight.w600),
         ),
       ),
-      home: LoginPage(), // Start with login page
+      home: SplashScreen(), // Start with splash screen
       debugShowCheckedModeBanner: false,
+    );
+  }
+}
+
+class SplashScreen extends StatefulWidget {
+  @override
+  _SplashScreenState createState() => _SplashScreenState();
+}
+
+class _SplashScreenState extends State<SplashScreen> {
+  @override
+  void initState() {
+    super.initState();
+    _checkSession();
+  }
+
+  Future<void> _checkSession() async {
+    // Add a small delay to show the splash screen
+    await Future.delayed(Duration(seconds: 1));
+    
+    if (!mounted) return;
+
+    final session = await SessionManager.getSession();
+    if (session != null) {
+      // User is logged in, navigate to main page
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => MainPage(userId: session['user_id']),
+        ),
+      );
+    } else {
+      // No valid session, navigate to login page
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => LoginPage()),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Color(0xFF6366F1),
+              Color(0xFF8B5CF6),
+              Color(0xFFEC4899),
+            ],
+          ),
+        ),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.fitness_center,
+                  size: 60,
+                  color: Colors.white,
+                ),
+              ),
+              SizedBox(height: 24),
+              Text(
+                'Fitness Tracker',
+                style: TextStyle(
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              SizedBox(height: 16),
+              CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -93,7 +183,7 @@ class MainPage extends StatefulWidget {
 class _MainPageState extends State<MainPage> {
   int _selectedIndex = 0;
 
-  // List of pages - now includes Body Visualizer
+  // List of pages - now includes Body Visualizer and Profile
   late final List<Widget> _pages;
 
   @override
@@ -102,7 +192,8 @@ class _MainPageState extends State<MainPage> {
     _pages = [
       DataTrackerPage(userId: widget.userId),
       InsightsPage(userId: widget.userId),
-      BodyVisualizerPage(userId: widget.userId), // Add the new page
+      BodyVisualizerPage(userId: widget.userId),
+      ProfilePage(userId: widget.userId), // Add the profile page
     ];
   }
 
@@ -134,12 +225,14 @@ class _MainPageState extends State<MainPage> {
               ),
             ),
             ElevatedButton(
-              onPressed: () {
+              onPressed: () async {
                 Navigator.of(context).pop(); // Close dialog
+                // Clear session data
+                await SessionManager.clearSession();
                 // Navigate back to login page and clear the stack
                 Navigator.of(context).pushAndRemoveUntil(
                   MaterialPageRoute(builder: (context) => LoginPage()),
-                      (Route<dynamic> route) => false,
+                  (Route<dynamic> route) => false,
                 );
               },
               style: ElevatedButton.styleFrom(
@@ -225,7 +318,8 @@ class _MainPageState extends State<MainPage> {
               children: [
                 _buildNavItem(0, Icons.fitness_center, 'Track Data'),
                 _buildNavItem(1, Icons.analytics, 'Insights'),
-                _buildNavItem(2, Icons.accessibility_new, 'Body 3D'), // Add new nav item
+                _buildNavItem(2, Icons.accessibility_new, 'Body 3D'),
+                _buildNavItem(3, Icons.person, 'Profile'), // Add profile nav item
               ],
             ),
           ),
